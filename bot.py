@@ -67,7 +67,6 @@ bot = commands.Bot(
 # =========================================================
 
 SURVEY_CHANNEL_ID = 1516067915772989541
-
 VERIFY_CHANNEL_ID = 1524035172193013971
 
 
@@ -77,11 +76,11 @@ VERIFY_CHANNEL_ID = 1524035172193013971
 
 LEVEL_ROLES = {
 
-    "A": 1526550072777506987,  # Lv 1-50
-    "B": 1526550215526580234,  # Lv 50-100
-    "C": 1526550423408738446,  # Lv 100-200
-    "D": 1526550541411553310,  # Lv 200-300
-    "E": 1526550629529423942   # Lv 300+
+    "A": 1526550072777506987,
+    "B": 1526550215526580234,
+    "C": 1526550423408738446,
+    "D": 1526550541411553310,
+    "E": 1526550629529423942
 }
 
 
@@ -91,10 +90,10 @@ LEVEL_ROLES = {
 
 SKILL_ROLES = {
 
-    "A": 1515539967047241869,  # Newbie
-    "B": 1515892846912081951,  # Tập sự
-    "C": 1525158742507655210,  # Pro
-    "D": 1525545106642309120   # Master
+    "A": 1515539967047241869,
+    "B": 1515892846912081951,
+    "C": 1525158742507655210,
+    "D": 1525545106642309120
 }
 
 
@@ -103,7 +102,6 @@ SKILL_ROLES = {
 # =========================================================
 
 DATABASE_FILE = "survey.db"
-
 
 db = sqlite3.connect(
     DATABASE_FILE,
@@ -132,14 +130,7 @@ def setup_database():
 setup_database()
 
 
-# =========================================================
-# DATABASE FUNCTIONS
-# =========================================================
-
-def get_status(
-    guild_id,
-    user_id
-):
+def get_status(guild_id, user_id):
 
     with db_lock:
 
@@ -150,10 +141,7 @@ def get_status(
             WHERE guild_id = ?
             AND user_id = ?
             """,
-            (
-                guild_id,
-                user_id
-            )
+            (guild_id, user_id)
         ).fetchone()
 
     if result is None:
@@ -162,11 +150,7 @@ def get_status(
     return result[0]
 
 
-def set_status(
-    guild_id,
-    user_id,
-    status
-):
+def set_status(guild_id, user_id, status):
 
     with db_lock:
 
@@ -178,8 +162,7 @@ def set_status(
                 (?, ?, ?)
 
             ON CONFLICT(guild_id, user_id)
-            DO UPDATE SET
-                status = excluded.status
+            DO UPDATE SET status = excluded.status
             """,
             (
                 guild_id,
@@ -191,44 +174,37 @@ def set_status(
         db.commit()
 
 
-def member_is_known(
-    guild_id,
-    user_id
-):
-
-    with db_lock:
-
-        result = db.execute(
-            """
-            SELECT 1
-            FROM members
-            WHERE guild_id = ?
-            AND user_id = ?
-            """,
-            (
-                guild_id,
-                user_id
-            )
-        ).fetchone()
-
-    return result is not None
-
-
 # =========================================================
-# USER ANSWERS
+# ANSWERS
 # =========================================================
 
 user_answers = {}
 
 
 # =========================================================
+# MESSAGE EVENT
+# =========================================================
+
+@bot.event
+async def on_message(message):
+
+    if message.author.bot:
+        return
+
+    print(
+        f"📩 MESSAGE: "
+        f"{message.author}: "
+        f"{message.content}"
+    )
+
+    await bot.process_commands(message)
+
+
+# =========================================================
 # CHECK USER
 # =========================================================
 
-async def check_user(
-    interaction,
-    member_id
-):
+async def check_user(interaction, member_id):
 
     if interaction.user.id != member_id:
 
@@ -243,15 +219,12 @@ async def check_user(
 
 
 # =========================================================
-# LEVEL BUTTONS
+# LEVEL VIEW
 # =========================================================
 
 class LevelView(discord.ui.View):
 
-    def __init__(
-        self,
-        member_id
-    ):
+    def __init__(self, member_id):
 
         super().__init__(
             timeout=None
@@ -325,7 +298,7 @@ class LevelView(discord.ui.View):
                     )
 
 
-        # Cấp role mới
+        # Cấp role
 
         try:
 
@@ -342,8 +315,6 @@ class LevelView(discord.ui.View):
 
             return
 
-
-        # Lưu câu trả lời
 
         user_answers.setdefault(
             self.member_id,
@@ -362,7 +333,7 @@ class LevelView(discord.ui.View):
 
         await interaction.response.send_message(
             f"✅ Đã nhận **{role.name}**!\n"
-            "➡️ Bây giờ hãy trả lời câu 2.",
+            "➡️ Hãy trả lời câu 2.",
             ephemeral=True
         )
 
@@ -453,15 +424,12 @@ class LevelView(discord.ui.View):
 
 
 # =========================================================
-# SKILL BUTTONS
+# SKILL VIEW
 # =========================================================
 
 class SkillView(discord.ui.View):
 
-    def __init__(
-        self,
-        member_id
-    ):
+    def __init__(self, member_id):
 
         super().__init__(
             timeout=None
@@ -504,7 +472,7 @@ class SkillView(discord.ui.View):
         if role is None:
 
             await interaction.response.send_message(
-                "❌ Không tìm thấy role trình độ!",
+                "❌ Không tìm thấy role!",
                 ephemeral=True
             )
 
@@ -546,7 +514,7 @@ class SkillView(discord.ui.View):
         except discord.Forbidden:
 
             await interaction.response.send_message(
-                "❌ Bot không có quyền cấp role này!",
+                "❌ Bot không có quyền cấp role!",
                 ephemeral=True
             )
 
@@ -567,7 +535,7 @@ class SkillView(discord.ui.View):
         )
 
 
-        # Chỉ người trả lời thấy
+        # Chỉ người đó thấy
 
         await interaction.response.send_message(
 
@@ -649,35 +617,24 @@ class SkillView(discord.ui.View):
 
 
 # =========================================================
-# GỬI KHẢO SÁT
+# SEND SURVEY
 # =========================================================
 
-async def send_survey(
-    member
-):
+async def send_survey(member):
 
     if member.bot:
         return
 
 
-    guild_id = member.guild.id
+    # Nếu đã hoàn thành thì không gửi lại
 
-    user_id = member.id
-
-
-    # Nếu đã hoàn thành thì không gửi
-
-    status = get_status(
-        guild_id,
-        user_id
-    )
-
-
-    if status == "completed":
+    if get_status(
+        member.guild.id,
+        member.id
+    ) == "completed":
 
         print(
-            f"⏭️ Bỏ qua {member} "
-            "(đã hoàn thành)"
+            f"⏭️ {member} đã hoàn thành khảo sát."
         )
 
         return
@@ -691,18 +648,17 @@ async def send_survey(
     if channel is None:
 
         print(
-            f"❌ Không tìm thấy kênh "
-            f"{SURVEY_CHANNEL_ID}"
+            "❌ Không tìm thấy kênh khảo sát!"
         )
 
         return
 
 
-    # Đánh dấu pending
+    # Đánh dấu đang làm khảo sát
 
     set_status(
-        guild_id,
-        user_id,
+        member.guild.id,
+        member.id,
         "pending"
     )
 
@@ -723,13 +679,13 @@ async def send_survey(
         description=(
 
             f"👋 Xin chào {member.mention}!\n"
-            "Hãy trả lời khảo sát để nhận role 👾\n\n"
+            "Hãy trả lời khảo sát để lấy role 👾\n\n"
 
-            "📝 **Gợi ý:**\n"
-            "Bấm trực tiếp vào nút A, B, C, D hoặc E "
-            "bên dưới để chọn đáp án.\n\n"
+            "💡 **Gợi ý:**\n"
+            "Bấm trực tiếp vào nút bên dưới "
+            "để chọn đáp án.\n\n"
 
-            "### 1️⃣ Level hiện tại của bạn là?\n\n"
+            "### 1️⃣ Level hiện tại của bạn?\n\n"
 
             "🅰️ Lv 1–50\n"
             "🅱️ Lv 50–100\n"
@@ -737,20 +693,15 @@ async def send_survey(
             "🇩 Lv 200–300\n"
             "🇪 Lv 300+\n\n"
 
-            "👇 **Bấm nút bên dưới để chọn**"
+            "👇 **Chọn đáp án bên dưới**"
         )
     )
 
 
     await channel.send(
-
         content=member.mention,
-
         embed=embed1,
-
-        view=LevelView(
-            member.id
-        )
+        view=LevelView(member.id)
     )
 
 
@@ -769,23 +720,18 @@ async def send_survey(
             "🇨 Pro\n"
             "🇩 Master\n\n"
 
-            "💡 **Gợi ý:** Chọn mức phù hợp nhất "
+            "💡 **Gợi ý:** Chọn mức phù hợp "
             "với kinh nghiệm của bạn.\n\n"
 
-            "👇 **Bấm nút bên dưới để chọn**"
+            "👇 **Chọn đáp án bên dưới**"
         )
     )
 
 
     await channel.send(
-
         content=member.mention,
-
         embed=embed2,
-
-        view=SkillView(
-            member.id
-        )
+        view=SkillView(member.id)
     )
 
 
@@ -795,13 +741,11 @@ async def send_survey(
 
 
 # =========================================================
-# NGƯỜI MỚI VÀO SERVER
+# MEMBER JOIN
 # =========================================================
 
 @bot.event
-async def on_member_join(
-    member
-):
+async def on_member_join(member):
 
     if member.bot:
         return
@@ -827,7 +771,7 @@ async def on_member_join(
 
 
 # =========================================================
-# KHI BOT ONLINE
+# BOT READY
 # =========================================================
 
 @bot.event
@@ -850,8 +794,8 @@ async def on_ready():
     )
 
 
-    # Đăng ký persistent views
-    # để nút vẫn hoạt động sau restart
+    # Persistent views
+    # KHÔNG quét thành viên
 
     bot.add_view(
         LevelView(0)
@@ -859,59 +803,6 @@ async def on_ready():
 
     bot.add_view(
         SkillView(0)
-    )
-
-
-    # =====================================================
-    # PHÁT HIỆN THÀNH VIÊN VÀO KHI BOT OFF
-    # =====================================================
-
-    for guild in bot.guilds:
-
-        print(
-            f"🔎 Kiểm tra server: {guild.name}"
-        )
-
-
-        current_members = set()
-
-
-        for member in guild.members:
-
-            if member.bot:
-                continue
-
-
-            current_members.add(
-                member.id
-            )
-
-
-            known = member_is_known(
-                guild.id,
-                member.id
-            )
-
-
-            if not known:
-
-                # Người này chưa từng được bot ghi nhận.
-                # Có thể là người vào khi bot OFF,
-                # hoặc người đã ở server trước khi bot cài.
-
-                print(
-                    f"🆕 Phát hiện thành viên "
-                    f"chưa được ghi nhận: {member}"
-                )
-
-
-                await send_survey(
-                    member
-                )
-
-
-    print(
-        "✅ Hoàn tất kiểm tra thành viên."
     )
 
 
@@ -936,13 +827,11 @@ async def survey(ctx):
             ctx.author
         )
 
-
     except Exception as error:
 
         print(
             f"❌ Lỗi !survey: {error}"
         )
-
 
         await ctx.send(
             "❌ Có lỗi khi gửi khảo sát. "
@@ -1015,19 +904,18 @@ token = os.environ.get(
 if not token:
 
     raise RuntimeError(
-        "❌ Không tìm thấy DISCORD_TOKEN!"
+        "❌ DISCORD_TOKEN chưa được cài!"
     )
 
 
 # =========================================================
-# START BOT
+# START
 # =========================================================
 
 print(
     "🚀 Starting Discord bot..."
 )
 
-
 bot.run(
     token
-)
+    )
