@@ -9,8 +9,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"Bot đã đăng nhập: {bot.user}")
 
-@bot.command()
-async def test(ctx):
-    await ctx.send("Bot đang hoạt động!")
+token = os.getenv("DISCORD_TOKEN")
 
-bot.run(os.getenv("DISCORD_TOKEN"))
+print("Có nhận được token:", bool(token))
+print("Độ dài token:", len(token) if token else 0)
+
+bot.run(token)
