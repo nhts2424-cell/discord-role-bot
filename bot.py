@@ -47,7 +47,15 @@ bot = commands.Bot(
     intents=intents
 )
 
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
 
+    print(f"📩 Nhận được: {message.content}")
+
+    await bot.process_commands(message)
+    
 # =========================================================
 # CHANNEL
 # =========================================================
