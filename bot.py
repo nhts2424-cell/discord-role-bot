@@ -56,7 +56,7 @@ bot = commands.Bot(
 # =========================================================
 
 # ID KÊNH KHẢO SÁT
-SURVEY_CHANNEL_ID = 0
+SURVEY_CHANNEL_ID = 1516067915772989541
 
 # ID KÊNH VERIFY
 VERIFY_CHANNEL_ID = 1524035172193013971
@@ -415,7 +415,7 @@ class SkillView(discord.ui.View):
 @bot.event
 async def on_member_join(member):
 
-    if SURVEY_CHANNEL_ID == 1516067915772989541:
+    if SURVEY_CHANNEL_ID == 0:
 
         print(
             "Chưa đặt SURVEY_CHANNEL_ID!"
