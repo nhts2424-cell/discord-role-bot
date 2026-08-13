@@ -34,10 +34,11 @@ threading.Thread(
 
 
 # =========================================================
-# DISCORD BOT
+# DISCORD
 # =========================================================
 
 intents = discord.Intents.default()
+
 intents.members = True
 intents.message_content = True
 
@@ -48,7 +49,7 @@ bot = commands.Bot(
 
 
 # =========================================================
-# CHANNEL ID
+# CHANNEL
 # =========================================================
 
 # Kênh Phỏng vấn / khảo sát
@@ -59,10 +60,11 @@ VERIFY_CHANNEL_ID = 1524035172193013971
 
 
 # =========================================================
-# ROLE ID
+# ROLE LEVEL
 # =========================================================
 
 LEVEL_ROLES = {
+
     "A": 1526550072777506987,  # Lv 1-50
     "B": 1526550215526580234,  # Lv 50-100
     "C": 1526550423408738446,  # Lv 100-200
@@ -70,7 +72,13 @@ LEVEL_ROLES = {
     "E": 1526550629529423942   # Lv 300+
 }
 
+
+# =========================================================
+# ROLE TRÌNH ĐỘ
+# =========================================================
+
 SKILL_ROLES = {
+
     "A": 1515539967047241869,  # Newbie
     "B": 1515892846912081951,  # Tập sự
     "C": 1525158742507655210,  # Pro
@@ -86,41 +94,7 @@ user_answers = {}
 
 
 # =========================================================
-# GỬI THÔNG BÁO VERIFY KHI HOÀN THÀNH
-# =========================================================
-
-async def check_finished(member):
-
-    answers = user_answers.get(member.id, {})
-
-    # Chưa chọn đủ 2 câu
-    if "level" not in answers:
-        return
-
-    if "skill" not in answers:
-        return
-
-    verify_channel = member.guild.get_channel(
-        VERIFY_CHANNEL_ID
-    )
-
-    if verify_channel is None:
-        print("❌ Không tìm thấy kênh Verify!")
-        return
-
-    await verify_channel.send(
-        f"📌 {member.mention} đã **hoàn thành khảo sát**!\n\n"
-        f"👉 Hãy qua <#{VERIFY_CHANNEL_ID}> để "
-        "**xác minh và mở khóa các kênh và tính năng.**"
-    )
-
-    print(
-        f"✅ {member} đã hoàn thành khảo sát."
-    )
-
-
-# =========================================================
-# KIỂM TRA NGƯỜI BẤM
+# KIỂM TRA NGƯỜI BẤM NÚT
 # =========================================================
 
 async def check_user(interaction, member_id):
@@ -144,16 +118,24 @@ async def check_user(interaction, member_id):
 class LevelView(discord.ui.View):
 
     def __init__(self, member_id):
+
         super().__init__(timeout=600)
+
         self.member_id = member_id
 
-    async def choose_level(self, interaction, answer):
+
+    async def choose_level(
+        self,
+        interaction,
+        answer
+    ):
 
         if not await check_user(
             interaction,
             self.member_id
         ):
             return
+
 
         member = interaction.guild.get_member(
             self.member_id
@@ -162,9 +144,11 @@ class LevelView(discord.ui.View):
         if member is None:
             return
 
+
         role = interaction.guild.get_role(
             LEVEL_ROLES[answer]
         )
+
 
         if role is None:
 
@@ -175,7 +159,9 @@ class LevelView(discord.ui.View):
 
             return
 
+
         # Xóa role level cũ
+
         for role_id in LEVEL_ROLES.values():
 
             old_role = interaction.guild.get_role(
@@ -185,14 +171,23 @@ class LevelView(discord.ui.View):
             if old_role and old_role in member.roles:
 
                 try:
-                    await member.remove_roles(old_role)
+
+                    await member.remove_roles(
+                        old_role
+                    )
+
                 except discord.Forbidden:
+
                     pass
 
+
         # Cấp role mới
+
         try:
 
-            await member.add_roles(role)
+            await member.add_roles(
+                role
+            )
 
         except discord.Forbidden:
 
@@ -203,7 +198,9 @@ class LevelView(discord.ui.View):
 
             return
 
+
         # Lưu câu trả lời
+
         user_answers.setdefault(
             self.member_id,
             {}
@@ -213,48 +210,91 @@ class LevelView(discord.ui.View):
             self.member_id
         ]["level"] = answer
 
+
         await interaction.response.send_message(
             f"✅ Đã chọn **{role.name}**!",
             ephemeral=True
         )
 
-        # Kiểm tra đã hoàn thành chưa
-        await check_finished(member)
 
     @discord.ui.button(
         label="A",
         style=discord.ButtonStyle.primary
     )
-    async def a(self, interaction, button):
-        await self.choose_level(interaction, "A")
+    async def a(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_level(
+            interaction,
+            "A"
+        )
+
 
     @discord.ui.button(
         label="B",
         style=discord.ButtonStyle.primary
     )
-    async def b(self, interaction, button):
-        await self.choose_level(interaction, "B")
+    async def b(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_level(
+            interaction,
+            "B"
+        )
+
 
     @discord.ui.button(
         label="C",
         style=discord.ButtonStyle.primary
     )
-    async def c(self, interaction, button):
-        await self.choose_level(interaction, "C")
+    async def c(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_level(
+            interaction,
+            "C"
+        )
+
 
     @discord.ui.button(
         label="D",
         style=discord.ButtonStyle.primary
     )
-    async def d(self, interaction, button):
-        await self.choose_level(interaction, "D")
+    async def d(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_level(
+            interaction,
+            "D"
+        )
+
 
     @discord.ui.button(
         label="E",
         style=discord.ButtonStyle.primary
     )
-    async def e(self, interaction, button):
-        await self.choose_level(interaction, "E")
+    async def e(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_level(
+            interaction,
+            "E"
+        )
 
 
 # =========================================================
@@ -264,16 +304,24 @@ class LevelView(discord.ui.View):
 class SkillView(discord.ui.View):
 
     def __init__(self, member_id):
+
         super().__init__(timeout=600)
+
         self.member_id = member_id
 
-    async def choose_skill(self, interaction, answer):
+
+    async def choose_skill(
+        self,
+        interaction,
+        answer
+    ):
 
         if not await check_user(
             interaction,
             self.member_id
         ):
             return
+
 
         member = interaction.guild.get_member(
             self.member_id
@@ -282,9 +330,11 @@ class SkillView(discord.ui.View):
         if member is None:
             return
 
+
         role = interaction.guild.get_role(
             SKILL_ROLES[answer]
         )
+
 
         if role is None:
 
@@ -295,7 +345,9 @@ class SkillView(discord.ui.View):
 
             return
 
+
         # Xóa role trình độ cũ
+
         for role_id in SKILL_ROLES.values():
 
             old_role = interaction.guild.get_role(
@@ -305,14 +357,23 @@ class SkillView(discord.ui.View):
             if old_role and old_role in member.roles:
 
                 try:
-                    await member.remove_roles(old_role)
+
+                    await member.remove_roles(
+                        old_role
+                    )
+
                 except discord.Forbidden:
+
                     pass
 
+
         # Cấp role mới
+
         try:
 
-            await member.add_roles(role)
+            await member.add_roles(
+                role
+            )
 
         except discord.Forbidden:
 
@@ -323,7 +384,9 @@ class SkillView(discord.ui.View):
 
             return
 
+
         # Lưu câu trả lời
+
         user_answers.setdefault(
             self.member_id,
             {}
@@ -333,43 +396,84 @@ class SkillView(discord.ui.View):
             self.member_id
         ]["skill"] = answer
 
+
+        # =================================================
+        # HOÀN THÀNH KHẢO SÁT
+        # =================================================
+
         await interaction.response.send_message(
-    f"🎉 Bạn đã hoàn thành khảo sát!\n\n"
-    f"👉 Hãy qua <#{VERIFY_CHANNEL_ID}> để xác minh "
-    f"và mở khóa các kênh và tính năng.",
-    ephemeral=True
+
+            f"🎉 **Bạn đã hoàn thành khảo sát!**\n\n"
+            f"👉 Hãy qua <#{VERIFY_CHANNEL_ID}> "
+            f"để xác minh và mở khóa các kênh "
+            f"và tính năng.",
+
+            ephemeral=True
         )
 
-        # Kiểm tra hoàn thành
-        await check_finished(member)
 
     @discord.ui.button(
         label="A",
         style=discord.ButtonStyle.success
     )
-    async def a(self, interaction, button):
-        await self.choose_skill(interaction, "A")
+    async def a(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_skill(
+            interaction,
+            "A"
+        )
+
 
     @discord.ui.button(
         label="B",
         style=discord.ButtonStyle.success
     )
-    async def b(self, interaction, button):
-        await self.choose_skill(interaction, "B")
+    async def b(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_skill(
+            interaction,
+            "B"
+        )
+
 
     @discord.ui.button(
         label="C",
         style=discord.ButtonStyle.success
     )
-    async def c(self, interaction, button):
-        await self.choose_skill(interaction, "C")
+    async def c(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_skill(
+            interaction,
+            "C"
+        )
+
 
     @discord.ui.button(
         label="D",
         style=discord.ButtonStyle.success
     )
-    async def d(self, interaction, button):
-        await self.choose_skill(interaction, "D")
+    async def d(
+        self,
+        interaction,
+        button
+    ):
+
+        await self.choose_skill(
+            interaction,
+            "D"
+        )
 
 
 # =========================================================
@@ -382,6 +486,7 @@ async def send_survey(member):
         SURVEY_CHANNEL_ID
     )
 
+
     if channel is None:
 
         print(
@@ -390,28 +495,30 @@ async def send_survey(member):
 
         return
 
-    user_answers[member.id] = {}
 
-    # -----------------------------------------------------
+    # Reset câu trả lời
+
+    user_answers[
+        member.id
+    ] = {}
+
+
+    # =====================================================
     # CÂU 1
-    # -----------------------------------------------------
+    # =====================================================
 
-    embed = discord.Embed(
+    embed1 = discord.Embed(
 
         title="📋 KHẢO SÁT THÀNH VIÊN MỚI",
 
         description=(
 
-            f"👋 XIN CHÀO {member.mention} "
-            "BÂY GIỜ HÃY TRẢ LỜI KHẢO SÁT "
-            "ĐỂ LẤY ROLE 👾\n\n"
+            f"👋 Xin chào {member.mention}!\n"
+            "Hãy trả lời khảo sát để nhận role 👾\n\n"
 
             "📝 **Hướng dẫn:**\n"
-            "• Mỗi câu chỉ chọn 1 đáp án.\n"
-            "• Bấm nút bên dưới để chọn.\n"
+            "• Chọn đáp án bằng nút bên dưới.\n"
             "• Chỉ bạn mới có thể trả lời khảo sát này.\n\n"
-
-            "━━━━━━━━━━━━━━━━━━\n\n"
 
             "### 1️⃣ Level hiện tại của bạn?\n\n"
 
@@ -421,19 +528,26 @@ async def send_survey(member):
             "D. Lv 200–300\n"
             "E. Lv 300+\n\n"
 
-            "👇 **Bấm nút bên dưới để chọn**"
+            "👇 **Chọn đáp án bên dưới**"
         )
     )
 
+
     await channel.send(
+
         content=member.mention,
-        embed=embed,
-        view=LevelView(member.id)
+
+        embed=embed1,
+
+        view=LevelView(
+            member.id
+        )
     )
 
-    # -----------------------------------------------------
+
+    # =====================================================
     # CÂU 2
-    # -----------------------------------------------------
+    # =====================================================
 
     embed2 = discord.Embed(
 
@@ -446,14 +560,20 @@ async def send_survey(member):
             "C. Pro\n"
             "D. Master\n\n"
 
-            "👇 **Bấm nút bên dưới để chọn**"
+            "👇 **Chọn đáp án bên dưới**"
         )
     )
 
+
     await channel.send(
+
         content=member.mention,
+
         embed=embed2,
-        view=SkillView(member.id)
+
+        view=SkillView(
+            member.id
+        )
     )
 
 
@@ -465,10 +585,13 @@ async def send_survey(member):
 async def on_member_join(member):
 
     print(
-        f"👋 Thành viên mới: {member} ({member.id})"
+        f"👋 Thành viên mới: "
+        f"{member} ({member.id})"
     )
 
-    await send_survey(member)
+    await send_survey(
+        member
+    )
 
 
 # =========================================================
@@ -476,14 +599,19 @@ async def on_member_join(member):
 # =========================================================
 
 @bot.command()
-@commands.has_permissions(administrator=True)
+@commands.has_permissions(
+    administrator=True
+)
 async def survey(ctx):
 
     print(
-        f"🧪 Test survey bởi {ctx.author}"
+        f"🧪 Test survey bởi "
+        f"{ctx.author}"
     )
 
-    await send_survey(ctx.author)
+    await send_survey(
+        ctx.author
+    )
 
 
 # =========================================================
@@ -494,7 +622,8 @@ async def survey(ctx):
 async def on_ready():
 
     print(
-        f"✅ Bot đã đăng nhập: {bot.user}"
+        f"✅ Bot đã online: "
+        f"{bot.user}"
     )
 
 
@@ -506,6 +635,7 @@ token = os.environ.get(
     "DISCORD_TOKEN"
 )
 
+
 if not token:
 
     raise RuntimeError(
@@ -513,4 +643,10 @@ if not token:
     )
 
 
-bot.run(token)
+# =========================================================
+# START
+# =========================================================
+
+bot.run(
+    token
+        )
