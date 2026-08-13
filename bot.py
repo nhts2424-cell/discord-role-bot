@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -7,7 +8,7 @@ from discord.ext import commands
 
 
 # =========================================================
-# RENDER HTTP SERVER
+# RENDER WEB SERVER
 # =========================================================
 
 class HealthCheck(BaseHTTPRequestHandler):
@@ -15,7 +16,7 @@ class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is running!")
+        self.wfile.write(b"Discord Role Bot is running!")
 
     def log_message(self, format, *args):
         pass
@@ -65,10 +66,8 @@ bot = commands.Bot(
 # CHANNEL ID
 # =========================================================
 
-# Kênh phỏng vấn / khảo sát
 SURVEY_CHANNEL_ID = 1516067915772989541
 
-# Kênh Verify
 VERIFY_CHANNEL_ID = 1524035172193013971
 
 
@@ -100,33 +99,130 @@ SKILL_ROLES = {
 
 
 # =========================================================
-# LƯU CÂU TRẢ LỜI
+# DATABASE
+# =========================================================
+
+DATABASE_FILE = "survey.db"
+
+
+db = sqlite3.connect(
+    DATABASE_FILE,
+    check_same_thread=False
+)
+
+db_lock = threading.Lock()
+
+
+def setup_database():
+
+    with db_lock:
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS members (
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                PRIMARY KEY (guild_id, user_id)
+            )
+        """)
+
+        db.commit()
+
+
+setup_database()
+
+
+# =========================================================
+# DATABASE FUNCTIONS
+# =========================================================
+
+def get_status(
+    guild_id,
+    user_id
+):
+
+    with db_lock:
+
+        result = db.execute(
+            """
+            SELECT status
+            FROM members
+            WHERE guild_id = ?
+            AND user_id = ?
+            """,
+            (
+                guild_id,
+                user_id
+            )
+        ).fetchone()
+
+    if result is None:
+        return None
+
+    return result[0]
+
+
+def set_status(
+    guild_id,
+    user_id,
+    status
+):
+
+    with db_lock:
+
+        db.execute(
+            """
+            INSERT INTO members
+                (guild_id, user_id, status)
+            VALUES
+                (?, ?, ?)
+
+            ON CONFLICT(guild_id, user_id)
+            DO UPDATE SET
+                status = excluded.status
+            """,
+            (
+                guild_id,
+                user_id,
+                status
+            )
+        )
+
+        db.commit()
+
+
+def member_is_known(
+    guild_id,
+    user_id
+):
+
+    with db_lock:
+
+        result = db.execute(
+            """
+            SELECT 1
+            FROM members
+            WHERE guild_id = ?
+            AND user_id = ?
+            """,
+            (
+                guild_id,
+                user_id
+            )
+        ).fetchone()
+
+    return result is not None
+
+
+# =========================================================
+# USER ANSWERS
 # =========================================================
 
 user_answers = {}
 
 
 # =========================================================
-# NHẬN MESSAGE
-# =========================================================
-
-@bot.event
-async def on_message(message):
-
-    if message.author.bot:
-        return
-
-    print(
-        f"📩 MESSAGE: "
-        f"{message.author}: "
-        f"{message.content}"
-    )
-
-    await bot.process_commands(message)
-
-
-# =========================================================
-# KIỂM TRA NGƯỜI BẤM NÚT
+# CHECK USER
 # =========================================================
 
 async def check_user(
@@ -147,14 +243,19 @@ async def check_user(
 
 
 # =========================================================
-# CÂU 1 - LEVEL
+# LEVEL BUTTONS
 # =========================================================
 
 class LevelView(discord.ui.View):
 
-    def __init__(self, member_id):
+    def __init__(
+        self,
+        member_id
+    ):
 
-        super().__init__(timeout=600)
+        super().__init__(
+            timeout=None
+        )
 
         self.member_id = member_id
 
@@ -193,7 +294,7 @@ class LevelView(discord.ui.View):
         if role is None:
 
             await interaction.response.send_message(
-                "❌ Không tìm thấy role!",
+                "❌ Không tìm thấy role Level!",
                 ephemeral=True
             )
 
@@ -211,12 +312,17 @@ class LevelView(discord.ui.View):
             if old_role and old_role in member.roles:
 
                 try:
+
                     await member.remove_roles(
                         old_role
                     )
 
                 except discord.Forbidden:
-                    pass
+
+                    print(
+                        f"❌ Không thể xóa role "
+                        f"{old_role.name}"
+                    )
 
 
         # Cấp role mới
@@ -250,21 +356,27 @@ class LevelView(discord.ui.View):
 
 
         print(
-            f"✅ {member} chọn level {answer}"
+            f"✅ {member} chọn Level {answer}"
         )
 
 
         await interaction.response.send_message(
-            f"✅ Đã chọn **{role.name}**!",
+            f"✅ Đã nhận **{role.name}**!\n"
+            "➡️ Bây giờ hãy trả lời câu 2.",
             ephemeral=True
         )
 
 
     @discord.ui.button(
         label="A",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.primary,
+        custom_id="survey_level_A"
     )
-    async def a(self, interaction, button):
+    async def button_a(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_level(
             interaction,
@@ -274,9 +386,14 @@ class LevelView(discord.ui.View):
 
     @discord.ui.button(
         label="B",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.primary,
+        custom_id="survey_level_B"
     )
-    async def b(self, interaction, button):
+    async def button_b(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_level(
             interaction,
@@ -286,9 +403,14 @@ class LevelView(discord.ui.View):
 
     @discord.ui.button(
         label="C",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.primary,
+        custom_id="survey_level_C"
     )
-    async def c(self, interaction, button):
+    async def button_c(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_level(
             interaction,
@@ -298,9 +420,14 @@ class LevelView(discord.ui.View):
 
     @discord.ui.button(
         label="D",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.primary,
+        custom_id="survey_level_D"
     )
-    async def d(self, interaction, button):
+    async def button_d(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_level(
             interaction,
@@ -310,9 +437,14 @@ class LevelView(discord.ui.View):
 
     @discord.ui.button(
         label="E",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.primary,
+        custom_id="survey_level_E"
     )
-    async def e(self, interaction, button):
+    async def button_e(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_level(
             interaction,
@@ -321,14 +453,19 @@ class LevelView(discord.ui.View):
 
 
 # =========================================================
-# CÂU 2 - TRÌNH ĐỘ
+# SKILL BUTTONS
 # =========================================================
 
 class SkillView(discord.ui.View):
 
-    def __init__(self, member_id):
+    def __init__(
+        self,
+        member_id
+    ):
 
-        super().__init__(timeout=600)
+        super().__init__(
+            timeout=None
+        )
 
         self.member_id = member_id
 
@@ -367,7 +504,7 @@ class SkillView(discord.ui.View):
         if role is None:
 
             await interaction.response.send_message(
-                "❌ Không tìm thấy role!",
+                "❌ Không tìm thấy role trình độ!",
                 ephemeral=True
             )
 
@@ -385,15 +522,20 @@ class SkillView(discord.ui.View):
             if old_role and old_role in member.roles:
 
                 try:
+
                     await member.remove_roles(
                         old_role
                     )
 
                 except discord.Forbidden:
-                    pass
+
+                    print(
+                        f"❌ Không thể xóa role "
+                        f"{old_role.name}"
+                    )
 
 
-        # Cấp role mới
+        # Cấp role
 
         try:
 
@@ -411,24 +553,21 @@ class SkillView(discord.ui.View):
             return
 
 
-        # Lưu câu trả lời
+        # Đánh dấu hoàn thành
 
-        user_answers.setdefault(
+        set_status(
+            interaction.guild.id,
             self.member_id,
-            {}
+            "completed"
         )
-
-        user_answers[
-            self.member_id
-        ]["skill"] = answer
 
 
         print(
-            f"🎉 {member} hoàn thành khảo sát!"
+            f"🎉 {member} đã hoàn thành khảo sát!"
         )
 
 
-        # Chỉ người vừa trả lời thấy
+        # Chỉ người trả lời thấy
 
         await interaction.response.send_message(
 
@@ -443,9 +582,14 @@ class SkillView(discord.ui.View):
 
     @discord.ui.button(
         label="A",
-        style=discord.ButtonStyle.success
+        style=discord.ButtonStyle.success,
+        custom_id="survey_skill_A"
     )
-    async def a(self, interaction, button):
+    async def button_a(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_skill(
             interaction,
@@ -455,9 +599,14 @@ class SkillView(discord.ui.View):
 
     @discord.ui.button(
         label="B",
-        style=discord.ButtonStyle.success
+        style=discord.ButtonStyle.success,
+        custom_id="survey_skill_B"
     )
-    async def b(self, interaction, button):
+    async def button_b(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_skill(
             interaction,
@@ -467,9 +616,14 @@ class SkillView(discord.ui.View):
 
     @discord.ui.button(
         label="C",
-        style=discord.ButtonStyle.success
+        style=discord.ButtonStyle.success,
+        custom_id="survey_skill_C"
     )
-    async def c(self, interaction, button):
+    async def button_c(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_skill(
             interaction,
@@ -479,9 +633,14 @@ class SkillView(discord.ui.View):
 
     @discord.ui.button(
         label="D",
-        style=discord.ButtonStyle.success
+        style=discord.ButtonStyle.success,
+        custom_id="survey_skill_D"
     )
-    async def d(self, interaction, button):
+    async def button_d(
+        self,
+        interaction,
+        button
+    ):
 
         await self.choose_skill(
             interaction,
@@ -493,24 +652,59 @@ class SkillView(discord.ui.View):
 # GỬI KHẢO SÁT
 # =========================================================
 
-async def send_survey(member):
+async def send_survey(
+    member
+):
 
-    channel = member.guild.get_channel(
-        SURVEY_CHANNEL_ID
+    if member.bot:
+        return
+
+
+    guild_id = member.guild.id
+
+    user_id = member.id
+
+
+    # Nếu đã hoàn thành thì không gửi
+
+    status = get_status(
+        guild_id,
+        user_id
     )
 
-    if channel is None:
+
+    if status == "completed":
 
         print(
-            "❌ Không tìm thấy kênh khảo sát!"
+            f"⏭️ Bỏ qua {member} "
+            "(đã hoàn thành)"
         )
 
         return
 
 
-    user_answers[
-        member.id
-    ] = {}
+    channel = member.guild.get_channel(
+        SURVEY_CHANNEL_ID
+    )
+
+
+    if channel is None:
+
+        print(
+            f"❌ Không tìm thấy kênh "
+            f"{SURVEY_CHANNEL_ID}"
+        )
+
+        return
+
+
+    # Đánh dấu pending
+
+    set_status(
+        guild_id,
+        user_id,
+        "pending"
+    )
 
 
     print(
@@ -531,19 +725,19 @@ async def send_survey(member):
             f"👋 Xin chào {member.mention}!\n"
             "Hãy trả lời khảo sát để nhận role 👾\n\n"
 
-            "📝 **Hướng dẫn:**\n"
-            "• Chọn đáp án bằng nút bên dưới.\n"
-            "• Chỉ bạn mới có thể trả lời.\n\n"
+            "📝 **Gợi ý:**\n"
+            "Bấm trực tiếp vào nút A, B, C, D hoặc E "
+            "bên dưới để chọn đáp án.\n\n"
 
-            "### 1️⃣ Level hiện tại của bạn?\n\n"
+            "### 1️⃣ Level hiện tại của bạn là?\n\n"
 
-            "A. Lv 1–50\n"
-            "B. Lv 50–100\n"
-            "C. Lv 100–200\n"
-            "D. Lv 200–300\n"
-            "E. Lv 300+\n\n"
+            "🅰️ Lv 1–50\n"
+            "🅱️ Lv 50–100\n"
+            "🇨 Lv 100–200\n"
+            "🇩 Lv 200–300\n"
+            "🇪 Lv 300+\n\n"
 
-            "👇 **Chọn đáp án bên dưới**"
+            "👇 **Bấm nút bên dưới để chọn**"
         )
     )
 
@@ -570,12 +764,15 @@ async def send_survey(member):
 
         description=(
 
-            "A. Newbie\n"
-            "B. Tập sự\n"
-            "C. Pro\n"
-            "D. Master\n\n"
+            "🅰️ Newbie\n"
+            "🅱️ Tập sự\n"
+            "🇨 Pro\n"
+            "🇩 Master\n\n"
 
-            "👇 **Chọn đáp án bên dưới**"
+            "💡 **Gợi ý:** Chọn mức phù hợp nhất "
+            "với kinh nghiệm của bạn.\n\n"
+
+            "👇 **Bấm nút bên dưới để chọn**"
         )
     )
 
@@ -598,16 +795,23 @@ async def send_survey(member):
 
 
 # =========================================================
-# TỰ ĐỘNG KHI MEMBER JOIN
+# NGƯỜI MỚI VÀO SERVER
 # =========================================================
 
 @bot.event
-async def on_member_join(member):
+async def on_member_join(
+    member
+):
+
+    if member.bot:
+        return
+
 
     print(
-        f"👋 Thành viên mới: "
+        f"👋 MEMBER JOIN: "
         f"{member} ({member.id})"
     )
+
 
     try:
 
@@ -620,6 +824,95 @@ async def on_member_join(member):
         print(
             f"❌ Lỗi gửi khảo sát: {error}"
         )
+
+
+# =========================================================
+# KHI BOT ONLINE
+# =========================================================
+
+@bot.event
+async def on_ready():
+
+    print(
+        "===================================="
+    )
+
+    print(
+        f"🤖 BOT ONLINE: {bot.user}"
+    )
+
+    print(
+        f"🆔 BOT ID: {bot.user.id}"
+    )
+
+    print(
+        "===================================="
+    )
+
+
+    # Đăng ký persistent views
+    # để nút vẫn hoạt động sau restart
+
+    bot.add_view(
+        LevelView(0)
+    )
+
+    bot.add_view(
+        SkillView(0)
+    )
+
+
+    # =====================================================
+    # PHÁT HIỆN THÀNH VIÊN VÀO KHI BOT OFF
+    # =====================================================
+
+    for guild in bot.guilds:
+
+        print(
+            f"🔎 Kiểm tra server: {guild.name}"
+        )
+
+
+        current_members = set()
+
+
+        for member in guild.members:
+
+            if member.bot:
+                continue
+
+
+            current_members.add(
+                member.id
+            )
+
+
+            known = member_is_known(
+                guild.id,
+                member.id
+            )
+
+
+            if not known:
+
+                # Người này chưa từng được bot ghi nhận.
+                # Có thể là người vào khi bot OFF,
+                # hoặc người đã ở server trước khi bot cài.
+
+                print(
+                    f"🆕 Phát hiện thành viên "
+                    f"chưa được ghi nhận: {member}"
+                )
+
+
+                await send_survey(
+                    member
+                )
+
+
+    print(
+        "✅ Hoàn tất kiểm tra thành viên."
+    )
 
 
 # =========================================================
@@ -636,17 +929,20 @@ async def survey(ctx):
         f"🧪 !survey bởi {ctx.author}"
     )
 
+
     try:
 
         await send_survey(
             ctx.author
         )
 
+
     except Exception as error:
 
         print(
             f"❌ Lỗi !survey: {error}"
         )
+
 
         await ctx.send(
             "❌ Có lỗi khi gửi khảo sát. "
@@ -655,7 +951,19 @@ async def survey(ctx):
 
 
 # =========================================================
-# LỖI COMMAND
+# !PING
+# =========================================================
+
+@bot.command()
+async def ping(ctx):
+
+    await ctx.send(
+        "🏓 Pong!"
+    )
+
+
+# =========================================================
+# COMMAND ERROR
 # =========================================================
 
 @bot.event
@@ -696,30 +1004,6 @@ async def on_command_error(
 
 
 # =========================================================
-# BOT READY
-# =========================================================
-
-@bot.event
-async def on_ready():
-
-    print(
-        "================================="
-    )
-
-    print(
-        f"🤖 BOT ONLINE: {bot.user}"
-    )
-
-    print(
-        f"🆔 BOT ID: {bot.user.id}"
-    )
-
-    print(
-        "================================="
-    )
-
-
-# =========================================================
 # TOKEN
 # =========================================================
 
@@ -727,21 +1011,23 @@ token = os.environ.get(
     "DISCORD_TOKEN"
 )
 
+
 if not token:
 
     raise RuntimeError(
-        "❌ DISCORD_TOKEN chưa được cài!"
+        "❌ Không tìm thấy DISCORD_TOKEN!"
     )
 
 
 # =========================================================
-# START
+# START BOT
 # =========================================================
 
 print(
     "🚀 Starting Discord bot..."
 )
 
+
 bot.run(
     token
-    )
+)
