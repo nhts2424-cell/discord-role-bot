@@ -411,6 +411,54 @@ class SkillView(discord.ui.View):
 # =========================================================
 # TỰ ĐỘNG GỬI KHẢO SÁT KHI CÓ NGƯỜI MỚI
 # =========================================================
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def survey(ctx):
+    member = ctx.author
+
+    user_answers[member.id] = {}
+
+    embed = discord.Embed(
+        title="📋 KHẢO SÁT THÀNH VIÊN MỚI",
+        description=(
+            f"👋 XIN CHÀO {member.mention} "
+            "BÂY GIỜ HÃY TRẢ LỜI KHẢO SÁT ĐỂ LẤY ROLE 👾\n\n"
+            "📝 **Hướng dẫn:**\n"
+            "• Mỗi câu chỉ chọn 1 đáp án.\n"
+            "• Bấm nút bên dưới để chọn.\n\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "### 1️⃣ Level hiện tại của bạn?\n\n"
+            "A. Lv 1–50\n"
+            "B. Lv 50–100\n"
+            "C. Lv 100–200\n"
+            "D. Lv 200–300\n"
+            "E. Lv 300+\n\n"
+            "👇 **Bấm nút bên dưới để chọn**"
+        )
+    )
+
+    await ctx.send(
+        content=member.mention,
+        embed=embed,
+        view=LevelView(member.id)
+    )
+
+    embed2 = discord.Embed(
+        title="2️⃣ BẠN TỰ NHẬN MÌNH LÀ?",
+        description=(
+            "A. Newbie\n"
+            "B. Tập sự\n"
+            "C. Pro\n"
+            "D. Master\n\n"
+            "👇 **Bấm nút bên dưới để chọn**"
+        )
+    )
+
+    await ctx.send(
+        content=member.mention,
+        embed=embed2,
+        view=SkillView(member.id)
+    )
 
 @bot.event
 async def on_member_join(member):
