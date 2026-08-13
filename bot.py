@@ -334,8 +334,11 @@ class SkillView(discord.ui.View):
         ]["skill"] = answer
 
         await interaction.response.send_message(
-            f"✅ Đã chọn **{role.name}**!",
-            ephemeral=True
+    f"✅ Đã chọn **{role.name}**!\n\n"
+    f"🎉 Bạn đã hoàn thành khảo sát!\n"
+    f"👉 Hãy qua <#{VERIFY_CHANNEL_ID}> để xác minh "
+    f"và mở khóa các kênh và tính năng.",
+    ephemeral=True
         )
 
         # Kiểm tra hoàn thành
